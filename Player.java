@@ -224,6 +224,7 @@ public class Player implements Runnable {
         else{
             if(this.table.tableReady){
                 this.commandsQueue.add(slot);
+                System.out.println("player: "+this.id +" slot command: "+slot);
             }
         }
     }
@@ -240,11 +241,18 @@ public class Player implements Runnable {
         env.ui.setScore(this.id, score);
         this.commandsQueue.Clear();
         this.placed_tokens = new boolean[12]; //resets the player's placed_tokens
-        env.ui.setFreeze(this.id, 1000); //EYTODO chech if works correctly
-        try {
-            Thread.sleep(1000); //EYTODO maybe change, now 1 seconds
-        } catch (InterruptedException ignored) {}
-        env.ui.setFreeze(this.id, 0); //"unfreeze"
+        
+        long freezeTime = this.env.config.pointFreezeMillis;
+        env.ui.setFreeze(this.id, freezeTime); //EYTODO chech if works correctly
+
+        while(freezeTime>0){
+            freezeTime = freezeTime - 1000;
+            try {
+                Thread.sleep(1000); //EYTODO maybe change, now total 5 seconds
+            } catch (InterruptedException ignored) {}
+            env.ui.setFreeze(this.id, freezeTime); //descending until unfrozen
+        }
+
         this.status = 1; //indicates he resumes to play
 
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
@@ -255,13 +263,14 @@ public class Player implements Runnable {
      */
     public void penalty() {
         // TODO implement
-        int freezeTime = 5000;
-         env.ui.setFreeze(this.id, freezeTime); //EYTODO chech if works correctly
-         for(int i=1;i<6;i++){
+        long freezeTime = this.env.config.penaltyFreezeMillis;
+        env.ui.setFreeze(this.id, freezeTime); //EYTODO chech if works correctly
+        while(freezeTime>0){
+            freezeTime = freezeTime - 1000;
             try {
                 Thread.sleep(1000); //EYTODO maybe change, now total 5 seconds
             } catch (InterruptedException ignored) {}
-            env.ui.setFreeze(this.id, freezeTime-(i*1000)); //descending until unfrozen
+            env.ui.setFreeze(this.id, freezeTime); //descending until unfrozen
         }
         this.commandsQueue.lst.clear();
         this.status = 3;
