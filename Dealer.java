@@ -292,5 +292,13 @@ public class Dealer implements Runnable {
                 winners.add(p.id);
             }
         }
+        if (winners.size()==1)
+            System.out.println("The winner is: ");
+        else
+            System.out.println("The winners are: ");
+            
+        for (Integer winner: winners){
+            System.out.println("Player " + winner);
+        }
     }
 }
