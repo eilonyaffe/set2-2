@@ -77,7 +77,7 @@ public class Dealer implements Runnable {
             updateTimerDisplay(true);
             removeAllCardsFromTable();
         }
-        System.out.println("no more sets found");
+        
         announceWinners();
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
     }
@@ -110,6 +110,12 @@ public class Dealer implements Runnable {
      */
     public void terminate() {
         // TODO implement
+        for (Player p: this.players){
+            p.terminate();
+        }
+        this.terminate = true;
+        if (env.util.findSets(deck, 1).size() == 0) //in case game ends when there are no more potential sets available
+            System.out.println("no more sets found");
     }
 
     /**

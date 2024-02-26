@@ -187,6 +187,7 @@ public class Player implements Runnable {
      */
     public void terminate() {
         // TODO implement
+        this.terminate = true;
     }
 
 
