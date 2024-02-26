@@ -133,6 +133,7 @@ public class Dealer implements Runnable {
             System.out.println("set made by player: "+player.id +" is: "+success);
 
             if(success){
+                System.out.println("success!");
                 for(int card: cardsSet){
                     int slot = this.table.cardToSlot[card];
                     ThreadSafeList slotObj = this.table.getSlot(slot);
@@ -150,13 +151,14 @@ public class Dealer implements Runnable {
                     this.table.removeCard(slot);
                 }
                 this.updateTimerDisplay(true);
-                player.point();
+                player.wasCorrect = 1; //indicates the player to activate point() on itself
             }
             else{
-                player.penalty();
+                player.wasCorrect = 0; //indicates the player to activate penalty() on itself
             }
             synchronized(this.table.playersLocker){
                 this.table.playersLocker.notifyAll(); //the first player from finishedPlayersCards got point/penalty, will change status so won't lock again. the players who weren't handled but are in the list will lock again
+                System.out.println("dealer did notifyall on lock");
             }
             this.table.hints(); //EYTODO delete later 
 
@@ -178,7 +180,7 @@ public class Dealer implements Runnable {
             }
             break;
         }
-        if(this.gameStart=true){
+        if(this.gameStart){
             for (int i = 0; i < players.length; i++){
                 Player a = players[i];
                 a.status=1; //players can start playing
@@ -246,7 +248,6 @@ public class Dealer implements Runnable {
         }
 
         for(Player player:players){
-            System.out.println("resetted player id: "+player.id);
             player.commandsQueue.Clear();
             player.tokensLeft = 3;
             player.placed_tokens = new boolean[12];
