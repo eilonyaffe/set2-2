@@ -1,20 +1,16 @@
 package bguspl.set.ex;
 
+import java.util.ArrayList;
+
 import bguspl.set.Env;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
 /**
- * This class contains the data that is visible to the player.
+ * This class manages the players' threads and data
  *
- * @inv slotToCard[x] == y iff cardToSlot[y] == x
+ * @inv id >= 0
+ * @inv score >= 0
  */
-public class Table {
+public class Player implements Runnable {
 
     /**
      * The game environment object.
@@ -22,166 +18,293 @@ public class Table {
     private final Env env;
 
     /**
-     * Mapping between a slot and the card placed in it (null if none).
+     * Game entities.
      */
-    protected final Integer[] slotToCard; // card per slot (if any)
+    private final Table table;
 
     /**
-     * Mapping between a card and the slot it is in (null if none).
+     * The id of the player (starting from 0).
      */
-    protected final Integer[] cardToSlot; // slot per card (if any)
+    public final int id;
+
+    /**
+     * The thread representing the current player.
+     */
+    private Thread playerThread;
 
 
     /**
-     * Indicates if the table is ready to be interacted with
+     * The commands list of the current player.
      */
-    protected boolean tableReady; 
-
+    protected BoundedQueue<Integer> commandsQueue;
 
     /**
-     * an object used to lock players
+     * The thread of the AI (computer) player (an additional thread used to generate key presses).
      */
-    protected Object playersLocker; 
-
-        /**
-     * a list of threadsafeLists, each represents a slot. made to avoid locking the entire table
-     */
-    protected ArrayList<ThreadSafeList> slots; //NEW
+    private Thread aiThread;
 
     /**
-     * a queue of finished players by integers
+     * True iff the player is human (not a computer player).
      */
-    protected LinkedList<LinkPlayerSet> finishedPlayersCards; //EYTODO implement in the form of FIFO queue thread safe
+    private final boolean human;
 
     /**
-     * Constructor for testing.
+     * True iff game should be terminated.
+     */
+    private volatile boolean terminate;
+
+    /**
+     * The current score of the player.
+     */
+    private int score;
+
+    /**
+     * The number of tokens the player can still place.
+     */
+    protected int tokensLeft;
+
+    /**
+     * The status of the player. 1=playing. 2=waiting for dealer's response. 3=failed to make set, needs to remove tokens
+     */
+    protected int status;
+
+    /**
+     * response from dealer about made set. -1 is initialization value. 0 is wrong. 1 is correct
+     */
+    protected int wasCorrect;
+
+    /**
+     * the tokens the human player had placed
+     */
+    protected boolean[] placed_tokens;
+
+    /**
+     * The class constructor.
      *
-     * @param env        - the game environment objects.
-     * @param slotToCard - mapping between a slot and the card placed in it (null if none).
-     * @param cardToSlot - mapping between a card and the slot it is in (null if none).
+     * @param env    - the environment object.
+     * @param dealer - the dealer object.
+     * @param table  - the table object.
+     * @param id     - the id of the player.
+     * @param human  - true iff the player is a human player (i.e. input is provided manually, via the keyboard).
      */
-    public Table(Env env, Integer[] slotToCard, Integer[] cardToSlot) {
-
+    public Player(Env env, Dealer dealer, Table table, int id, boolean human) {
         this.env = env;
-        this.slotToCard = slotToCard;
-        this.cardToSlot = cardToSlot;
-        this.slots = new ArrayList<ThreadSafeList>(12);
-        for (int i = 0; i < 12; i++) {
-            slots.add(new ThreadSafeList(env,i));
+        this.table = table;
+        this.id = id;
+        this.human = human;
+        this.commandsQueue = new BoundedQueue<Integer>();
+        this.tokensLeft = 3;
+        this.status = 2; //ensures players don't play before dealer places all cards
+        this.placed_tokens = new boolean[12];
+        this.wasCorrect = -1;
+        System.out.println("player created, id: " + id); //TODO delete later
+    }
+
+    /**
+     * The main player thread of each player starts here (main loop for the player thread).
+     */
+    @Override
+    public void run() {
+        playerThread = Thread.currentThread();
+        env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
+        if (!human) createArtificialIntelligence();
+
+        while (!terminate) {
+            // TODO implement main player loop
+
+            //EYTODO maybe insert here, if tableready==false, then wait. and then in the dealer we will notifyall
+            if(this.tokensLeft==0 && this.status==1 && this.table.tableReady){ //player just finished making a set
+                this.status=2;
+                this.sendSetCards();
+
+                synchronized(this.table.playersLocker){
+                    while(this.wasCorrect==-1){
+                        try{
+                            this.table.playersLocker.wait(); //dealer will notify, and instruct point/penatly which will also change tokensleft and status
+                        } catch (InterruptedException ignored) {}
+                    }
+                }
+                if(this.wasCorrect==1){
+                    this.point();
+                }
+                else if(this.wasCorrect==0){
+                    this.penalty();
+                }
+                this.wasCorrect = -1;
+
+            }
+            else {
+                if(!commandsQueue.lst.isEmpty() && this.table.tableReady){
+                    int slotCommand = commandsQueue.lst.remove(0);
+                    if(this.status==1){
+                        if(this.placed_tokens[slotCommand]){ //player removes token
+                            this.table.removeToken(this.id, slotCommand);
+                            this.placed_tokens[slotCommand]=false;
+                            this.tokensLeft++;
+                        }
+                        else if(!this.placed_tokens[slotCommand]){
+                            this.table.placeToken(this.id, slotCommand);
+                            this.placed_tokens[slotCommand]=true; //player adds token
+                            this.tokensLeft--;
+                        }
+                    }
+                    else if(this.status==3){
+                        if(this.placed_tokens[slotCommand]){
+                            this.table.removeToken(this.id, slotCommand);
+                            this.placed_tokens[slotCommand]=false;
+                            this.tokensLeft++;
+                            this.status = 1; //returns to play normally
+                        }
+                    }
+            }
         }
-        this.finishedPlayersCards = new LinkedList<LinkPlayerSet>();
-        this.tableReady = false;
-        this.playersLocker = new Object();
+        if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
+        env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
+    }
+}
+
+    /**
+     * Creates an additional thread for an AI (computer) player. The main loop of this thread repeatedly generates
+     * key presses. If the queue of key presses is full, the thread waits until it is not full.
+     */
+    private void createArtificialIntelligence() {
+        // note: this is a very, very smart AI (!)
+        aiThread = new Thread(() -> {
+            env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
+            while (!terminate) {
+                // TODO implement player key press simulator
+                try {
+                    synchronized (this) { wait(); }
+                } catch (InterruptedException ignored) {}
+            }
+            env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
+        }, "computer-" + id);
+        aiThread.start();
     }
 
     /**
-     * Constructor for actual usage.
-     *
-     * @param env - the game environment objects.
+     * Called when the game should be terminated.
      */
-    public Table(Env env) {
-
-        this(env, new Integer[env.config.tableSize], new Integer[env.config.deckSize]);
-    }
-
-
-    /**
-     * returns the required slot, in the form of arraylist.
-     * @param slot - the slot in which the card should be placed.
-     */
-    public ThreadSafeList getSlot(int slot){ //EYTODO NEW
-        return this.slots.get(slot); //was slot-5
-    }
-
-
-    /**
-     * This method prints all possible legal sets of cards that are currently on the table.
-     */
-    public void hints() {
-        List<Integer> deck = Arrays.stream(slotToCard).filter(Objects::nonNull).collect(Collectors.toList());
-        env.util.findSets(deck, Integer.MAX_VALUE).forEach(set -> {
-            StringBuilder sb = new StringBuilder().append("Hint: Set found: ");
-            List<Integer> slots = Arrays.stream(set).mapToObj(card -> cardToSlot[card]).sorted().collect(Collectors.toList());
-            int[][] features = env.util.cardsToFeatures(set);
-            System.out.println(sb.append("slots: ").append(slots).append(" features: ").append(Arrays.deepToString(features)));
-        });
-    }
-
-    /**
-     * Count the number of cards currently on the table.
-     *
-     * @return - the number of cards on the table.
-     */
-    public int countCards() {
-        int cards = 0;
-        for (Integer card : slotToCard)
-            if (card != null)
-                ++cards;
-        return cards;
-    }
-
-    /**
-     * Places a card on the table in a grid slot.
-     * @param card - the card id to place in the slot.
-     * @param slot - the slot in which the card should be placed.
-     *
-     * @post - the card placed is on the table, in the assigned slot.
-     */
-    public void placeCard(int card, int slot) {
-        try {
-            Thread.sleep(env.config.tableDelayMillis);
-        } catch (InterruptedException ignored) {}
-
-        cardToSlot[card] = slot;
-        slotToCard[slot] = card;
-        env.ui.placeCard(card,slot);
-
+    public void terminate() {
         // TODO implement
     }
 
-    /**
-     * Removes a card from a grid slot on the table.
-     * @param slot - the slot from which to remove the card.
-     */
-    public void removeCard(int slot) {
-        try {
-            Thread.sleep(env.config.tableDelayMillis);
-        } catch (InterruptedException ignored) {}
-        int card =  slotToCard[slot];
-        slotToCard[slot]=null;
-        cardToSlot[card]=null;
-        env.ui.removeCard(slot);
-        // TODO implement
-    }
+
 
     /**
-     * Places a player token on a grid slot.
-     * @param player - the player the token belongs to.
-     * @param slot   - the slot on which to place the token.
+     * creates the alleged set of cards that the player chose, and sends it to the table
      */
-    public void placeToken(int player, int slot) {
-        ThreadSafeList currSlot = this.getSlot(slot);
-        currSlot.add(player);
-        // TODO implement
-    }
-
-    /**
-     * Removes a token of a player from a grid slot.
-     * @param player - the player the token belongs to.
-     * @param slot   - the slot from which to remove the token.
-     * @return       - true iff a token was successfully removed.
-     */
-    public boolean removeToken(int player, int slot) {
-        // TODO implement
-        ThreadSafeList currSlot = this.getSlot(slot);
-        boolean ans =  currSlot.remove(player);
-        return ans;
-    }
-
-    public void removeAllTokens() { 
-        // EYTODO implement
-        for (ThreadSafeList currSlot:this.slots){
-            currSlot.removeAll();
+    public void sendSetCards() {
+        int[] cards = new int[3];
+        int j=0;
+        for(int i=0;j<3 && i<this.placed_tokens.length;i++){
+            if(this.placed_tokens[i]==true){
+                cards[j] = table.slotToCard[i];
+                j++;
+            }
         }
+        LinkPlayerSet link = new LinkPlayerSet(cards, this);
+        this.table.finishedPlayersCards.add(link); 
+    }
+
+
+    /**
+     * This method is called when a key is pressed.
+     *
+     * @param slot - the slot corresponding to the key pressed.
+     */
+    public void keyPressed(int slot) {
+        // TODO implement
+        if(this.status==3 && this.placed_tokens[slot]==false){ //player has to only remove tokens now //was slotCommand-5
+            //do nothing
+        }
+        else if(this.status==2){ //player awaits dealer's response
+            //do nothing //TODO maybe change? don't need if we implement threading correctly
+        }
+        else{
+            if(this.table.tableReady){
+                this.commandsQueue.add(slot);
+                System.out.println("player: "+this.id +" slot command: "+slot);
+            }
+        }
+    }
+
+    /**
+     * Award a point to a player and perform other related actions.
+     *
+     * @post - the player's score is increased by 1.
+     * @post - the player's score is updated in the ui.
+     */
+    public void point() {
+        // TODO implement
+        this.score++;
+        env.ui.setScore(this.id, score);
+        this.commandsQueue.Clear();
+        this.placed_tokens = new boolean[12]; //resets the player's placed_tokens
+        
+        long freezeTime = this.env.config.pointFreezeMillis;
+        env.ui.setFreeze(this.id, freezeTime); //EYTODO chech if works correctly
+
+        while(freezeTime>0){
+            freezeTime = freezeTime - 1000;
+            try {
+                Thread.sleep(1000); //EYTODO maybe change, now total 5 seconds
+            } catch (InterruptedException ignored) {}
+            env.ui.setFreeze(this.id, freezeTime); //descending until unfrozen
+        }
+
+        this.status = 1; //indicates he resumes to play
+
+        int ignored = table.countCards(); // this part is just for demonstration in the unit tests
+    }
+
+    /**
+     * Penalize a player and perform other related actions.
+     */
+    public void penalty() {
+        // TODO implement
+        long freezeTime = this.env.config.penaltyFreezeMillis;
+        env.ui.setFreeze(this.id, freezeTime); //EYTODO chech if works correctly
+        while(freezeTime>0){
+            freezeTime = freezeTime - 1000;
+            try {
+                Thread.sleep(1000); //EYTODO maybe change, now total 5 seconds
+            } catch (InterruptedException ignored) {}
+            env.ui.setFreeze(this.id, freezeTime); //descending until unfrozen
+        }
+        this.commandsQueue.lst.clear();
+        this.status = 3;
+    }
+
+    public int score() {
+        return score;
+    }
+}
+
+class BoundedQueue<T> {
+    ArrayList<Integer> lst;
+    int capacity;
+    BoundedQueue(){ this.capacity = 3; this.lst = new ArrayList<Integer>(); }
+
+    public void add(Integer obj) {
+        if(lst.size() < capacity)
+            lst.add(obj);
+    }
+
+    public Integer remove() {
+        Integer retValue = -1;
+        if (!lst.isEmpty()){
+            retValue = lst.remove(0);
+            return retValue;
+        }
+        return retValue;
+    }
+
+    public void Clear() {
+        lst.clear();
+    }
+
+    public boolean isEmpty() {
+        return lst.isEmpty();
     }
 }
