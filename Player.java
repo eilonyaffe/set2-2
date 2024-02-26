@@ -69,6 +69,11 @@ public class Player implements Runnable {
     protected int status;
 
     /**
+     * response from dealer about made set. -1 is initialization value. 0 is wrong. 1 is correct
+     */
+    protected int wasCorrect;
+
+    /**
      * the tokens the human player had placed
      */
     protected boolean[] placed_tokens;
@@ -91,6 +96,7 @@ public class Player implements Runnable {
         this.tokensLeft = 3;
         this.status = 2; //ensures players don't play before dealer places all cards
         this.placed_tokens = new boolean[12];
+        this.wasCorrect = -1;
         System.out.println("player created, id: " + id); //TODO delete later
     }
 
@@ -107,21 +113,27 @@ public class Player implements Runnable {
             // TODO implement main player loop
 
             //EYTODO maybe insert here, if tableready==false, then wait. and then in the dealer we will notifyall
-
             if(this.tokensLeft==0 && this.status==1 && this.table.tableReady){ //player just finished making a set
                 this.status=2;
                 this.sendSetCards();
 
                 synchronized(this.table.playersLocker){
-                    while(this.status==2){
+                    while(this.wasCorrect==-1){
                         try{
                             this.table.playersLocker.wait(); //dealer will notify, and instruct point/penatly which will also change tokensleft and status
                         } catch (InterruptedException ignored) {}
                     }
                 }
+                if(this.wasCorrect==1){
+                    this.point();
+                }
+                else if(this.wasCorrect==0){
+                    this.penalty();
+                }
+                this.wasCorrect = -1;
 
             }
-            else{
+            else {
                 if(!commandsQueue.lst.isEmpty() && this.table.tableReady){
                     int slotCommand = commandsQueue.lst.remove(0);
                     if(this.status==1){
@@ -213,7 +225,6 @@ public class Player implements Runnable {
             if(this.table.tableReady){
                 this.commandsQueue.add(slot);
             }
-            // System.out.println("slot pressed by player: "+ id + " is: "+slot);
         }
     }
 
@@ -252,7 +263,7 @@ public class Player implements Runnable {
             } catch (InterruptedException ignored) {}
             env.ui.setFreeze(this.id, freezeTime-(i*1000)); //descending until unfrozen
         }
-        this.commandsQueue.Clear();
+        this.commandsQueue.lst.clear();
         this.status = 3;
     }
 
