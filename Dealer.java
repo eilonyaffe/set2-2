@@ -2,6 +2,7 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -76,8 +77,12 @@ public class Dealer implements Runnable {
             timerLoop();
             updateTimerDisplay(true);
             removeAllCardsFromTable();
+        }    //NEYA MODIFIED
+
+        if (env.util.findSets(deck, 1).size() == 0) {//in case game ends when there are no more potential sets available
+            System.out.println("No more sets found - GAME ENDS");
+            terminate();
         }
-        
         announceWinners();
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
     }
@@ -108,14 +113,12 @@ public class Dealer implements Runnable {
     /**
      * Called when the game should be terminated.
      */
-    public void terminate() {
+    public void terminate() { //NEYA ADDED
         // TODO implement
         for (Player p: this.players){
             p.terminate();
         }
         this.terminate = true;
-        if (env.util.findSets(deck, 1).size() == 0) //in case game ends when there are no more potential sets available
-            System.out.println("no more sets found");
     }
 
     /**
@@ -275,5 +278,19 @@ public class Dealer implements Runnable {
      */
     private void announceWinners() {
         // TODO implement
+        int maxScore = -1;
+        List<Integer> winners = new ArrayList<Integer>();
+
+        for (Player p: this.players){
+            int currScore = p.score();
+            if(currScore > maxScore){
+                maxScore = currScore;
+                winners.clear();
+                winners.add(p.id);
+            }
+            else if(currScore == maxScore){
+                winners.add(p.id);
+            }
+        }
     }
 }

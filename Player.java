@@ -185,7 +185,7 @@ public class Player implements Runnable {
     /**
      * Called when the game should be terminated.
      */
-    public void terminate() {
+    public void terminate() { //NEYA ADDED
         // TODO implement
         this.terminate = true;
     }
@@ -224,8 +224,10 @@ public class Player implements Runnable {
         }
         else{
             if(this.table.tableReady){
+                if (this.table.slotToCard[slot] != null){ //NEYA ADDED IF
                 this.commandsQueue.add(slot);
                 System.out.println("player: "+this.id +" slot command: "+slot);
+                }
             }
         }
     }
