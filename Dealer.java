@@ -126,7 +126,7 @@ public class Dealer implements Runnable {
     private void removeCardsFromTable() {
         // TODO implement
         if(!this.table.finishedPlayersCards.isEmpty()){
-            Link removedLink = this.table.finishedPlayersCards.removeFirst();
+            LinkPlayerSet removedLink = this.table.finishedPlayersCards.removeFirst();
             int[] cardsSet = removedLink.cards;
             Player player = removedLink.player;
             boolean success = this.env.util.testSet(cardsSet);

@@ -51,7 +51,7 @@ public class Table {
     /**
      * a queue of finished players by integers
      */
-    protected LinkedList<Link> finishedPlayersCards; //EYTODO implement in the form of FIFO queue thread safe
+    protected LinkedList<LinkPlayerSet> finishedPlayersCards; //EYTODO implement in the form of FIFO queue thread safe
 
     /**
      * Constructor for testing.
@@ -69,7 +69,7 @@ public class Table {
         for (int i = 0; i < 12; i++) {
             slots.add(new ThreadSafeList(env,i));
         }
-        this.finishedPlayersCards = new LinkedList<Link>();
+        this.finishedPlayersCards = new LinkedList<LinkPlayerSet>();
         this.tableReady = false;
         this.playersLocker = new Object();
     }

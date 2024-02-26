@@ -203,7 +203,7 @@ public class Player implements Runnable {
                 j++;
             }
         }
-        Link link = new Link(cards, this);
+        LinkPlayerSet link = new LinkPlayerSet(cards, this);
         this.table.finishedPlayersCards.add(link); 
     }
 
