@@ -77,6 +77,7 @@ public class Dealer implements Runnable {
             updateTimerDisplay(true);
             removeAllCardsFromTable();
         }
+        System.out.println("no more sets found");
         announceWinners();
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
     }
@@ -161,7 +162,7 @@ public class Dealer implements Runnable {
                 System.out.println("dealer did notifyall on lock");
             }
             this.table.hints(); //EYTODO delete later 
-
+            System.out.println("no more sets in deck? "+ (env.util.findSets(deck, 1).size() == 0));
         }
 
     }
@@ -184,7 +185,7 @@ public class Dealer implements Runnable {
             for (int i = 0; i < players.length; i++){
                 Player a = players[i];
                 a.status=1; //players can start playing
-                this.table.tableReady = true;
+                // this.table.tableReady = true;
             }
             this.gameStart = false;
         }
@@ -207,8 +208,8 @@ public class Dealer implements Runnable {
         // TODO implement
         if(this.startTime == Long.MAX_VALUE && this.reshuffleTime == Long.MAX_VALUE){
             this.startTime = System.currentTimeMillis();
-            this.reshuffleTime = System.currentTimeMillis() + 61000; //EY: dont change!
-            this.timeElapsed = System.currentTimeMillis() + 61000;
+            this.reshuffleTime = System.currentTimeMillis() + (env.config.turnTimeoutMillis + 1000); //EY: dont change!
+            this.timeElapsed = System.currentTimeMillis() + (env.config.turnTimeoutMillis + 1000);
         }
 
         try {
@@ -230,6 +231,9 @@ public class Dealer implements Runnable {
         }
         else{
             env.ui.setCountdown(timeElapsed-startTime, false);
+        }
+        if(this.table.tableReady==false){
+            this.table.tableReady=true;
         }
     }
 
@@ -255,7 +259,8 @@ public class Dealer implements Runnable {
         }
 
         this.table.removeAllTokens();
-        this.table.tableReady = true;
+
+
         // notifyAll();
     }
 
