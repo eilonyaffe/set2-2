@@ -139,13 +139,19 @@ public class Player implements Runnable {
                         } catch (InterruptedException ignored) {}
                     }
                 }
+                //hazilon changed here
                 if(this.wasCorrect==1){
                     this.point();
                 }
                 else if(this.wasCorrect==0){
                     this.penalty();
                 }
+                else{
+                    this.playerReset();
+                }
+            
                 this.wasCorrect = -1;
+                this.status = 1;
 
             }
             else {
@@ -176,6 +182,8 @@ public class Player implements Runnable {
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }
+        // if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {} //EYTODO should be here
+        // env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
     }
 
     /**
@@ -208,16 +216,17 @@ public class Player implements Runnable {
                     }
 
                     // System.out.println("player "+this.id+" entered if, after check, was correct: "+this.wasCorrect);
-
+                    //hazilon changed here
                     if(this.wasCorrect==1){
                         this.point();
                     }
-                    else{
-                        if(this.wasCorrect==0){
-                            this.penalty();
-                        }
-                        this.removeAITokens(); //self remove, never is status=3
+                    else if(this.wasCorrect==0){
+                        this.penalty();
                     }
+                    else{
+                        this.playerReset();
+                    }
+                
                     this.wasCorrect = -1;
                     this.status = 1;
                 }
@@ -230,7 +239,6 @@ public class Player implements Runnable {
                     if(this.table.tableReady && this.table.slotToCard[slotsGenerator.get(0)] != null && this.placed_tokens[slotsGenerator.get(0)]==false){ //legal "key press"
                         this.commandsQueue.add(slotsGenerator.get(0)); 
                         // System.out.println("ai player: "+this.id + " added to queue");
-
                     }
 
                     if(!commandsQueue.isEmpty() && this.table.tableReady){ //will commit "key press"
@@ -268,14 +276,16 @@ public class Player implements Runnable {
     /**
      * Used for AI players, to reset them
      */
-    public void removeAITokens() { //Hazilon added
+    public void playerReset() { //Hazilon added
         for (int i = 0; i < 12; i++){ //remove all tokens if set is invalid
             if(this.placed_tokens[i] == true){
                 this.table.removeToken(this.id, i);
                 this.placed_tokens[i] = false;
-                this.tokensLeft++;
             }
         }
+        this.commandsQueue.Clear();
+        this.tokensLeft = 3; //hazilon added change here
+        this.status = 1;
         try{
             Thread.sleep(this.AIsleep); //sleep to prolongue next key press
         } catch (InterruptedException ignored) {}
@@ -295,7 +305,7 @@ public class Player implements Runnable {
             }
         }
         this.playerSingleLink.cards = newCards;
-        this.table.finishedPlayersCards.add(playerSingleLink); 
+        this.table.finishedPlayerSets.add(playerSingleLink);  //hazilon
     }
 
     /**
@@ -345,6 +355,7 @@ public class Player implements Runnable {
         }
 
         this.status = 1; //indicates he resumes to play
+        this.tokensLeft = 3;
 
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
     }
