@@ -136,14 +136,14 @@ public class Dealer implements Runnable {
      */
     private void removeCardsFromTable() {
         // TODO implement
-        if(!this.table.finishedPlayersCards.isEmpty()){
-            LinkPlayerSet removedLink = this.table.finishedPlayersCards.removeFirst();
+        while(this.table.finishedPlayersCards.peek()!=null){ //TODO was if(...). make sure it works. also was .isEmpty()
+            LinkPlayerSet removedLink = this.table.finishedPlayersCards.remove();
             int[] cardsSet = removedLink.cards;
             Player player = removedLink.player;
             boolean success = this.env.util.testSet(cardsSet);
             System.out.println("set made by player: "+player.id +" is: "+success);
-
             if(success){
+                this.table.tableReady = false;
                 System.out.println("success!");
                 LinkedList<LinkPlayerSet> linksToRemove = new LinkedList<LinkPlayerSet>();
                 for(int card: cardsSet){
@@ -158,34 +158,30 @@ public class Dealer implements Runnable {
                         
                         //TODO also need to check if players with finished alleged set had cards who got just deleted. if so, remove their set and give them 3 tokens and status 1
                         if(currPlayer.status==2 && currPlayer.id != player.id){ //another player who had just finished
-                            for(LinkPlayerSet link: this.table.finishedPlayersCards){
-                                if(link.player.id==currPlayer.id){
-                                    linksToRemove.add(link);
-                                    System.out.println("found another player who just finished, id: "+link.player.id);
-                                    currPlayer.wasCorrect = -2;
-                                }
-                            }
+                            this.table.finishedPlayersCards.remove(currPlayer.playerSingleLink);
+                            currPlayer.wasCorrect = -2;
                         }
                     }
                     slotObj.removeAll();
                     this.table.removeCard(slot);
                 }
-                for(LinkPlayerSet linkeWeRemove: linksToRemove){
-                    this.table.finishedPlayersCards.remove(linkeWeRemove);
-                } //TODO check it works
                 this.updateTimerDisplay(true);
                 player.wasCorrect = 1; //indicates the player to activate point() on itself
+                this.table.hints(); //EYTODO delete later 
+
             }
             else{
                 player.wasCorrect = 0; //indicates the player to activate penalty() on itself
             }
             synchronized(this.table.playersLocker){
                 this.table.playersLocker.notifyAll(); //the first player from finishedPlayersCards got point/penalty, will change status so won't lock again. the players who weren't handled but are in the list will lock again
-                System.out.println("dealer did notifyall on lock");
+                // System.out.println("dealer did notifyall on lock");
             }
-            this.table.hints(); //EYTODO delete later 
-            System.out.println("no more sets in deck? "+ (env.util.findSets(deck, 1).size() == 0));
+            // this.table.hints(); //EYTODO delete later 
+            // System.out.println("no more sets in deck? "+ (env.util.findSets(deck, 1).size() == 0));
         }
+        this.table.tableReady = true;
+
 
     }
 
@@ -280,10 +276,13 @@ public class Dealer implements Runnable {
             player.tokensLeft = 3;
             player.placed_tokens = new boolean[12];
             player.status = 1;
+            player.wasCorrect = -2;
+
+            System.out.println("player resetted: "+player.id);
         }
 
         this.table.removeAllTokens();
-
+        System.out.println("removed all cards from table");
 
         // notifyAll();
     }
