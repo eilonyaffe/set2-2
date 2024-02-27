@@ -145,7 +145,6 @@ public class Dealer implements Runnable {
             if(success){
                 this.table.tableReady = false;
                 System.out.println("success!");
-                LinkedList<LinkPlayerSet> linksToRemove = new LinkedList<LinkPlayerSet>();
                 for(int card: cardsSet){
                     int slot = this.table.cardToSlot[card];
                     ThreadSafeList slotObj = this.table.getSlot(slot);
