@@ -153,8 +153,18 @@ public class Dealer implements Runnable {
                         currPlayer.tokensLeft++;
                         System.out.println("removed card from slot: "+ slot +" for player: "+currPlayer.id +" tokens left: "+currPlayer.tokensLeft);
                         currPlayer.placed_tokens[slot]=false;
-                        if(currPlayer.status==2 && currPlayer.id!=player.id){
-                            //TODO also need to check if players with finished alleged set had cards who got just deleted. if so, remove their set and give them 3 tokens and status 1
+                        
+                        //TODO also need to check if players with finished alleged set had cards who got just deleted. if so, remove their set and give them 3 tokens and status 1
+                        if(currPlayer.status==2 && currPlayer.id != player.id){ //another player who had just finished
+                            for(LinkPlayerSet link: this.table.finishedPlayersCards){
+                                if(link.player.id==currPlayer.id){
+                                    System.out.println("found another player who just finished, id: "+link.player.id);
+                                    this.table.finishedPlayersCards.remove(link);
+                                    System.out.println("success removing");
+                                    currPlayer.wasCorrect = -2;
+                                }
+                            }
+
                         }
                     }
                     slotObj.removeAll();
