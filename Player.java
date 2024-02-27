@@ -124,7 +124,7 @@ public class Player implements Runnable {
         env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
         if (!human) createArtificialIntelligence();
 
-        while (!terminate) {
+        while (human&&!terminate) {
             // TODO implement main player loop
             //EYTODO maybe insert here, if tableready==false, then wait. and then in the dealer we will notifyall
             if(this.tokensLeft==0 && this.status==1 && this.table.tableReady){ //player just finished making a set
@@ -177,13 +177,13 @@ public class Player implements Runnable {
                     //         this.status = 1; //returns to play normally
                     //     }
                     // }
+                }
             }
+        //if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
+        //env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }
-        if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
+        if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {} //EYTODO should be here
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
-        }
-        // if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {} //EYTODO should be here
-        // env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
     }
 
     /**
@@ -249,9 +249,9 @@ public class Player implements Runnable {
 
                             this.placed_tokens[slotCommand]=true;
                             this.tokensLeft--;
-                            if(this.tokensLeft!=0){ //if finished set, will not sleep
+                            //if(this.tokensLeft!=0){ //if finished set, will not sleep
                                 Thread.sleep(this.AIsleep);
-                            }
+                            //}
                         } catch (InterruptedException ignored) {}
                     }
 
@@ -260,7 +260,7 @@ public class Player implements Runnable {
             }
         
 
-        env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
+            env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
         aiThread.start();
     }
