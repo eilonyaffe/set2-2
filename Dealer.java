@@ -170,6 +170,11 @@ public class Dealer implements Runnable {
 
             }
             else{
+                for(int card: cardsSet){
+                    int slot = this.table.cardToSlot[card];
+                    ThreadSafeList slotObj = this.table.getSlot(slot);
+                    slotObj.remove(player.id);
+                }
                 player.wasCorrect = 0; //indicates the player to activate penalty() on itself
             }
             synchronized(this.table.playersLocker){
