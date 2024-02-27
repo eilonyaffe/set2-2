@@ -1,6 +1,7 @@
 package bguspl.set.ex;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 import bguspl.set.Env;
 
@@ -111,7 +112,6 @@ public class Player implements Runnable {
 
         while (!terminate) {
             // TODO implement main player loop
-
             //EYTODO maybe insert here, if tableready==false, then wait. and then in the dealer we will notifyall
             if(this.tokensLeft==0 && this.status==1 && this.table.tableReady){ //player just finished making a set
                 this.status=2;
@@ -167,19 +167,68 @@ public class Player implements Runnable {
      * Creates an additional thread for an AI (computer) player. The main loop of this thread repeatedly generates
      * key presses. If the queue of key presses is full, the thread waits until it is not full.
      */
-    private void createArtificialIntelligence() {
+    private void createArtificialIntelligence() { //NEYA ADDED
         // note: this is a very, very smart AI (!)
         aiThread = new Thread(() -> {
             env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
+
+            ArrayList<Integer> slotsGenerator = new ArrayList<Integer>();
+            for (int i = 0; i < 12; i++) 
+                slotsGenerator.add(i);
+
             while (!terminate) {
                 // TODO implement player key press simulator
-                try {
-                    synchronized (this) { wait(); }
-                } catch (InterruptedException ignored) {}
+
+                Collections.shuffle(slotsGenerator);
+                for(int j=0;j<3;j++)
+                    this.commandsQueue.lst.add(slotsGenerator.get(j)); //the random 3 key presses
+
+                while(!commandsQueue.isEmpty()){ //placing all 3 former key presses on grid
+                    try {
+                        int slotCommand = commandsQueue.lst.remove(0);
+                        System.out.println(slotCommand);
+                        table.placeToken(this.id, slotCommand);
+                        this.placed_tokens[slotCommand]=true;
+                        this.tokensLeft--;
+                        Thread.sleep(4000); //EYTODO maybe change, now 4 seconds
+                    } catch (InterruptedException ignored) {}
+                    
+                    if (this.table.tableReady){
+                        this.status=2;
+                        this.sendSetCards();
+
+                        synchronized(this.table.playersLocker){
+                            while(this.wasCorrect==-1){
+                                try{
+                                    this.table.playersLocker.wait(); //dealer will notify, and instruct point/penatly which will also change tokensleft and status
+                                } catch (InterruptedException ignored) {}
+                            }
+                        }
+                        if(this.wasCorrect==1){
+                            this.point();
+                        }
+                        else if(this.wasCorrect==0){
+                            for (int i = 0; i < 12; i++){ //remove all tokens if set is invalid
+                                    if (this.placed_tokens[i] == true){
+                                        this.table.removeToken(this.id, i);
+                                        this.placed_tokens[i] = false;
+                                        this.tokensLeft++;
+                                    }
+                            }
+                            this.penalty();
+                            
+                        }
+                        this.wasCorrect = -1;
+                    }
+
+                }
             }
+
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
         aiThread.start();
+        //System.out.println(commandsQueue.lst.get(0));
+        System.out.println(status);
     }
 
     /**
