@@ -75,7 +75,7 @@ public class Player implements Runnable {
     protected int wasCorrect;
 
     /**
-     * time between AI keypresses
+     * time between AI "keypresses"
      */
     protected long AIsleep;
 
@@ -83,6 +83,11 @@ public class Player implements Runnable {
      * the tokens the human player had placed
      */
     protected boolean[] placed_tokens;
+
+    /**
+     * the Link containing the set the player has sent to be checked
+     */
+    protected LinkPlayerSet playerSingleLink;
 
     /**
      * The class constructor.
@@ -103,7 +108,9 @@ public class Player implements Runnable {
         this.status = 2; //ensures players don't play before dealer places all cards
         this.placed_tokens = new boolean[12];
         this.wasCorrect = -1;
-        this.AIsleep = 1000;
+        this.AIsleep = 3000;
+        int[] cards = new int[3];
+        this.playerSingleLink = new LinkPlayerSet(cards, this);
         System.out.println("player created, id: " + id); //TODO delete later
     }
 
@@ -120,6 +127,7 @@ public class Player implements Runnable {
             // TODO implement main player loop
             //EYTODO maybe insert here, if tableready==false, then wait. and then in the dealer we will notifyall
             if(this.tokensLeft==0 && this.status==1 && this.table.tableReady){ //player just finished making a set
+                this.wasCorrect = -1;
                 this.status=2;
                 this.sendSetCards();
 
@@ -193,9 +201,13 @@ public class Player implements Runnable {
                         while(this.wasCorrect==-1){
                             try{
                                 this.table.playersLocker.wait(); //dealer will notify, and instruct point/penatly which will also change tokensleft and status
+                                // System.out.println("player: "+this.id +" exited sleep");
                             } catch (InterruptedException ignored) {}
                         }
                     }
+
+                    // System.out.println("player "+this.id+" entered if, after check, was correct: "+this.wasCorrect);
+
                     if(this.wasCorrect==1){
                         this.point();
                     }
@@ -210,15 +222,22 @@ public class Player implements Runnable {
                 }
 
                 else{
+                    // if(this.tokensLeft==3){
+                    //     System.out.println("ai player: "+this.id + " with 3 tokens entered else");
+                    // }
                     Collections.shuffle(slotsGenerator);
                     if(this.table.tableReady && this.table.slotToCard[slotsGenerator.get(0)] != null && this.placed_tokens[slotsGenerator.get(0)]==false){ //legal "key press"
                         this.commandsQueue.add(slotsGenerator.get(0)); 
+                        // System.out.println("ai player: "+this.id + " added to queue");
+
                     }
 
                     if(!commandsQueue.isEmpty() && this.table.tableReady){ //will commit "key press"
                         try{
                             int slotCommand = this.commandsQueue.lst.remove(0);
                             this.table.placeToken(this.id, slotCommand);
+                            // System.out.println("ai player: "+this.id + " placed token");
+
                             this.placed_tokens[slotCommand]=true;
                             this.tokensLeft--;
                             if(this.tokensLeft!=0){ //if finished set, will not sleep
@@ -230,6 +249,7 @@ public class Player implements Runnable {
                     
                 }  
             }
+        
 
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
@@ -265,18 +285,17 @@ public class Player implements Runnable {
      * creates the alleged set of cards that the player chose, and sends it to the table
      */
     public void sendSetCards() {
-        int[] cards = new int[3];
+        int[] newCards = new int[3];
         int j=0;
         for(int i=0;j<3 && i<this.placed_tokens.length;i++){
             if(this.placed_tokens[i]==true){
-                cards[j] = table.slotToCard[i];
+                newCards[j] = table.slotToCard[i];
                 j++;
             }
         }
-        LinkPlayerSet link = new LinkPlayerSet(cards, this);
-        this.table.finishedPlayersCards.add(link); 
+        this.playerSingleLink.cards = newCards;
+        this.table.finishedPlayersCards.add(playerSingleLink); 
     }
-
 
     /**
      * This method is called when a key is pressed.
@@ -295,7 +314,6 @@ public class Player implements Runnable {
             if(this.table.tableReady){
                 if (this.table.slotToCard[slot] != null){ //NEYA ADDED IF
                 this.commandsQueue.add(slot);
-                System.out.println("player: "+this.id +" slot command: "+slot);
                 }
             }
         }
