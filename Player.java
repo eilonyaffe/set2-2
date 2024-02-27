@@ -75,6 +75,11 @@ public class Player implements Runnable {
     protected int wasCorrect;
 
     /**
+     * time between AI keypresses
+     */
+    protected long AIsleep;
+
+    /**
      * the tokens the human player had placed
      */
     protected boolean[] placed_tokens;
@@ -98,6 +103,7 @@ public class Player implements Runnable {
         this.status = 2; //ensures players don't play before dealer places all cards
         this.placed_tokens = new boolean[12];
         this.wasCorrect = -1;
+        this.AIsleep = 1000;
         System.out.println("player created, id: " + id); //TODO delete later
     }
 
@@ -160,8 +166,8 @@ public class Player implements Runnable {
         }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
+        }
     }
-}
 
     /**
      * Creates an additional thread for an AI (computer) player. The main loop of this thread repeatedly generates
@@ -179,56 +185,55 @@ public class Player implements Runnable {
             while (!terminate) {
                 // TODO implement player key press simulator
 
-                Collections.shuffle(slotsGenerator);
-                for(int j=0;j<3;j++)
-                    this.commandsQueue.lst.add(slotsGenerator.get(j)); //the random 3 key presses
+                if(this.tokensLeft==0 && this.status==1 && this.table.tableReady){ //player just finished making a set
+                    this.status=2;
+                    this.sendSetCards();
 
-                while(!commandsQueue.isEmpty()){ //placing all 3 former key presses on grid
-                    try {
-                        int slotCommand = commandsQueue.lst.remove(0);
-                        System.out.println(slotCommand);
-                        table.placeToken(this.id, slotCommand);
-                        this.placed_tokens[slotCommand]=true;
-                        this.tokensLeft--;
-                        Thread.sleep(4000); //EYTODO maybe change, now 4 seconds
-                    } catch (InterruptedException ignored) {}
-                    
-                    if (this.table.tableReady){
-                        this.status=2;
-                        this.sendSetCards();
-
-                        synchronized(this.table.playersLocker){
-                            while(this.wasCorrect==-1){
-                                try{
-                                    this.table.playersLocker.wait(); //dealer will notify, and instruct point/penatly which will also change tokensleft and status
-                                } catch (InterruptedException ignored) {}
-                            }
+                    synchronized(this.table.playersLocker){
+                        while(this.wasCorrect==-1){
+                            try{
+                                this.table.playersLocker.wait(); //dealer will notify, and instruct point/penatly which will also change tokensleft and status
+                            } catch (InterruptedException ignored) {}
                         }
-                        if(this.wasCorrect==1){
-                            this.point();
-                        }
-                        else if(this.wasCorrect==0){
-                            for (int i = 0; i < 12; i++){ //remove all tokens if set is invalid
-                                    if (this.placed_tokens[i] == true){
-                                        this.table.removeToken(this.id, i);
-                                        this.placed_tokens[i] = false;
-                                        this.tokensLeft++;
-                                    }
-                            }
+                    }
+                    if(this.wasCorrect==1){
+                        this.point();
+                    }
+                    else{
+                        if(this.wasCorrect==0){
                             this.penalty();
-                            
                         }
-                        this.wasCorrect = -1;
+                        this.removeAITokens(); //self remove, never is status=3
+                    }
+                    this.wasCorrect = -1;
+                    this.status = 1;
+                }
+
+                else{
+                    Collections.shuffle(slotsGenerator);
+                    if(this.table.tableReady && this.table.slotToCard[slotsGenerator.get(0)] != null && this.placed_tokens[slotsGenerator.get(0)]==false){ //legal "key press"
+                        this.commandsQueue.add(slotsGenerator.get(0)); 
                     }
 
-                }
+                    if(!commandsQueue.isEmpty() && this.table.tableReady){ //will commit "key press"
+                        try{
+                            int slotCommand = this.commandsQueue.lst.remove(0);
+                            this.table.placeToken(this.id, slotCommand);
+                            this.placed_tokens[slotCommand]=true;
+                            this.tokensLeft--;
+                            if(this.tokensLeft!=0){ //if finished set, will not sleep
+                                Thread.sleep(this.AIsleep);
+                            }
+                        } catch (InterruptedException ignored) {}
+                    }
+
+                    
+                }  
             }
 
-            env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
+        env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
         aiThread.start();
-        //System.out.println(commandsQueue.lst.get(0));
-        System.out.println(status);
     }
 
     /**
@@ -239,6 +244,21 @@ public class Player implements Runnable {
         this.terminate = true;
     }
 
+    /**
+     * Used for AI players, to reset them
+     */
+    public void removeAITokens() { //Hazilon added
+        for (int i = 0; i < 12; i++){ //remove all tokens if set is invalid
+            if(this.placed_tokens[i] == true){
+                this.table.removeToken(this.id, i);
+                this.placed_tokens[i] = false;
+                this.tokensLeft++;
+            }
+        }
+        try{
+            Thread.sleep(this.AIsleep); //sleep to prolongue next key press
+        } catch (InterruptedException ignored) {}
+    }
 
 
     /**
@@ -324,8 +344,12 @@ public class Player implements Runnable {
             } catch (InterruptedException ignored) {}
             env.ui.setFreeze(this.id, freezeTime); //descending until unfrozen
         }
-        this.commandsQueue.lst.clear();
+        this.commandsQueue.lst.clear(); //maybe change to clear like in point()
         this.status = 3;
+    }
+
+    public boolean human() {
+        return this.human;
     }
 
     public int score() {
