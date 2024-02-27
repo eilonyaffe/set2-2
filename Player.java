@@ -65,12 +65,13 @@ public class Player implements Runnable {
     protected int tokensLeft;
 
     /**
-     * The status of the player. 1=playing. 2=waiting for dealer's response. 3=failed to make set, needs to remove tokens
+     * The status of the player. 1=playing. 2=waiting for dealer's response.
      */
     protected int status;
 
     /**
-     * response from dealer about made set. -1 is initialization value. 0 is wrong. 1 is correct
+     * response from dealer about made set. -1 is initialization value. 0 is wrong. 1 is correct. 2 is got one of his set elements 
+     * taken by a successful set of another player
      */
     protected int wasCorrect;
 
@@ -162,14 +163,14 @@ public class Player implements Runnable {
                             this.tokensLeft--;
                         }
                     }
-                    else if(this.status==3){
-                        if(this.placed_tokens[slotCommand]){
-                            this.table.removeToken(this.id, slotCommand);
-                            this.placed_tokens[slotCommand]=false;
-                            this.tokensLeft++;
-                            this.status = 1; //returns to play normally
-                        }
-                    }
+                    // else if(this.status==3){
+                    //     if(this.placed_tokens[slotCommand]){
+                    //         this.table.removeToken(this.id, slotCommand);
+                    //         this.placed_tokens[slotCommand]=false;
+                    //         this.tokensLeft++;
+                    //         this.status = 1; //returns to play normally
+                    //     }
+                    // }
             }
         }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
@@ -362,8 +363,10 @@ public class Player implements Runnable {
             } catch (InterruptedException ignored) {}
             env.ui.setFreeze(this.id, freezeTime); //descending until unfrozen
         }
-        this.commandsQueue.lst.clear(); //maybe change to clear like in point()
-        this.status = 3;
+        this.commandsQueue.Clear();
+        this.placed_tokens = new boolean[12]; //resets the player's placed_tokens
+        this.status = 1;
+        this.tokensLeft = 3;
     }
 
     public boolean human() {
