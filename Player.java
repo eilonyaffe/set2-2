@@ -106,7 +106,7 @@ public class Player implements Runnable {
         this.human = human;
         this.commandsQueue = new BoundedQueue<Integer>();
         this.tokensLeft = 3;
-        this.status = 2; //ensures players don't play before dealer places all cards
+        this.status = 1; //ensures players don't play before dealer places all cards //hazilon changed
         this.placed_tokens = new boolean[12];
         this.wasCorrect = -1;
         this.AIsleep = 3000;
@@ -249,9 +249,8 @@ public class Player implements Runnable {
 
                             this.placed_tokens[slotCommand]=true;
                             this.tokensLeft--;
-                            //if(this.tokensLeft!=0){ //if finished set, will not sleep
-                                Thread.sleep(this.AIsleep);
-                            //}
+                            Thread.sleep(this.AIsleep);
+                            
                         } catch (InterruptedException ignored) {}
                     }
 
