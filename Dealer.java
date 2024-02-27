@@ -4,6 +4,7 @@ import bguspl.set.Env;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -144,6 +145,7 @@ public class Dealer implements Runnable {
 
             if(success){
                 System.out.println("success!");
+                LinkedList<LinkPlayerSet> linksToRemove = new LinkedList<LinkPlayerSet>();
                 for(int card: cardsSet){
                     int slot = this.table.cardToSlot[card];
                     ThreadSafeList slotObj = this.table.getSlot(slot);
@@ -151,25 +153,26 @@ public class Dealer implements Runnable {
                     for(int playerToReturn : playersWithToken){ //first returning tokens to players
                         Player currPlayer = this.players[playerToReturn];
                         currPlayer.tokensLeft++;
-                        System.out.println("removed card from slot: "+ slot +" for player: "+currPlayer.id +" tokens left: "+currPlayer.tokensLeft);
+                        // System.out.println("removed card from slot: "+ slot +" for player: "+currPlayer.id +" tokens left: "+currPlayer.tokensLeft);
                         currPlayer.placed_tokens[slot]=false;
                         
                         //TODO also need to check if players with finished alleged set had cards who got just deleted. if so, remove their set and give them 3 tokens and status 1
                         if(currPlayer.status==2 && currPlayer.id != player.id){ //another player who had just finished
                             for(LinkPlayerSet link: this.table.finishedPlayersCards){
                                 if(link.player.id==currPlayer.id){
+                                    linksToRemove.add(link);
                                     System.out.println("found another player who just finished, id: "+link.player.id);
-                                    this.table.finishedPlayersCards.remove(link);
-                                    System.out.println("success removing");
                                     currPlayer.wasCorrect = -2;
                                 }
                             }
-
                         }
                     }
                     slotObj.removeAll();
                     this.table.removeCard(slot);
                 }
+                for(LinkPlayerSet linkeWeRemove: linksToRemove){
+                    this.table.finishedPlayersCards.remove(linkeWeRemove);
+                } //TODO check it works
                 this.updateTimerDisplay(true);
                 player.wasCorrect = 1; //indicates the player to activate point() on itself
             }
@@ -262,6 +265,8 @@ public class Dealer implements Runnable {
     private void removeAllCardsFromTable() {
         // TODO implement
         this.table.tableReady = false;
+
+        this.table.finishedPlayersCards.clear(); //all attempts at sets will be removed //TODO maybe change?
 
         for(int slot=0;slot<12;slot++){
             if(table.slotToCard[slot]!=null){
