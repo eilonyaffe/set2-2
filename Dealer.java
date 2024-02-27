@@ -38,7 +38,7 @@ public class Dealer implements Runnable {
     /**
      * True iff the game just began.
      */
-    private boolean gameStart;
+    // private boolean gameStart; //hazilon changed
 
     /**
      * The time when the dealer needs to reshuffle the deck due to turn timeout.
@@ -59,7 +59,7 @@ public class Dealer implements Runnable {
         this.env = env;
         this.table = table;
         this.players = players;
-        this.gameStart = true;
+        // this.gameStart = true; //hazilon changed
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
     }
 
@@ -137,11 +137,11 @@ public class Dealer implements Runnable {
         // TODO implement
         while(!this.table.finishedPlayerSets.isEmpty()){ //TODO was if(...). make sure it works. also was .isEmpty()
             LinkPlayerSet removedLink = this.table.finishedPlayerSets.removeFirst(); //hazilon
-            System.out.println("dealer check validity of set by player: "+removedLink.player.id);
+            // System.out.println("dealer check validity of set by player: "+removedLink.player.id);
             int[] cardsSet = removedLink.cards;
             Player player = removedLink.player;
             boolean success = this.env.util.testSet(cardsSet);
-            System.out.println("set made by player: "+player.id +" is: "+success);
+            // System.out.println("set made by player: "+player.id +" is: "+success);
             if(success){
                 this.table.tableReady = false;
                 System.out.println("success!");
@@ -172,9 +172,11 @@ public class Dealer implements Runnable {
             }
             else{
                 for(int card: cardsSet){
-                    int slot = this.table.cardToSlot[card];
-                    ThreadSafeList slotObj = this.table.getSlot(slot);
-                    slotObj.remove(player.id);
+                    if(this.table.cardToSlot[card]!=null){
+                        int slot = this.table.cardToSlot[card];
+                        ThreadSafeList slotObj = this.table.getSlot(slot);
+                        slotObj.remove(player.id);
+                    }
                 }
                 player.wasCorrect = 0; //indicates the player to activate penalty() on itself
             }
@@ -182,9 +184,12 @@ public class Dealer implements Runnable {
                 this.table.playersLocker.notifyAll(); //the first player from finishedPlayersCards got point/penalty, will change status so won't lock again. the players who weren't handled but are in the list will lock again
                 // System.out.println("dealer did notifyall on lock");
             }
+            this.table.hints(); //EYTODO delete later 
+
             // this.table.hints(); //EYTODO delete later 
             // System.out.println("no more sets in deck? "+ (env.util.findSets(deck, 1).size() == 0));
         }
+
         this.table.tableReady = true;
 
 
@@ -204,14 +209,14 @@ public class Dealer implements Runnable {
             }
             break;
         }
-        if(this.gameStart){
-            for (int i = 0; i < players.length; i++){
-                Player a = players[i];
-                a.status=1; //players can start playing
-                // this.table.tableReady = true;
-            }
-            this.gameStart = false;
-        }
+        // if(this.gameStart){ //hazilon changed
+        //     for (int i = 0; i < players.length; i++){
+        //         Player a = players[i];
+        //         a.status=1; //players can start playing
+        //         // this.table.tableReady = true;
+        //     }
+        //     this.gameStart = false;
+        // }
         
     }
 
