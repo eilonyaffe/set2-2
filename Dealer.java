@@ -55,7 +55,6 @@ public class Dealer implements Runnable {
      */
     private long timeElapsed = Long.MAX_VALUE;
 
-
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
@@ -136,8 +135,9 @@ public class Dealer implements Runnable {
      */
     private void removeCardsFromTable() {
         // TODO implement
-        while(this.table.finishedPlayersCards.peek()!=null){ //TODO was if(...). make sure it works. also was .isEmpty()
-            LinkPlayerSet removedLink = this.table.finishedPlayersCards.remove();
+        while(!this.table.finishedPlayerSets.isEmpty()){ //TODO was if(...). make sure it works. also was .isEmpty()
+            LinkPlayerSet removedLink = this.table.finishedPlayerSets.removeFirst(); //hazilon
+            System.out.println("dealer check validity of set by player: "+removedLink.player.id);
             int[] cardsSet = removedLink.cards;
             Player player = removedLink.player;
             boolean success = this.env.util.testSet(cardsSet);
@@ -156,8 +156,9 @@ public class Dealer implements Runnable {
                         currPlayer.placed_tokens[slot]=false;
                         
                         //TODO also need to check if players with finished alleged set had cards who got just deleted. if so, remove their set and give them 3 tokens and status 1
-                        if(currPlayer.status==2 && currPlayer.id != player.id){ //another player who had just finished
-                            this.table.finishedPlayersCards.remove(currPlayer.playerSingleLink);
+                        if(currPlayer.status==2 && currPlayer.id != player.id && currPlayer.wasCorrect!=-2){ //another player who had just finished
+                            System.out.println("player failed to make set: "+currPlayer.id);
+                            this.table.finishedPlayerSets.remove(currPlayer.playerSingleLink);
                             currPlayer.wasCorrect = -2;
                         }
                     }
@@ -266,7 +267,7 @@ public class Dealer implements Runnable {
         // TODO implement
         this.table.tableReady = false;
 
-        this.table.finishedPlayersCards.clear(); //all attempts at sets will be removed //TODO maybe change?
+        this.table.finishedPlayerSets.removeAll(); //all attempts at sets will be removed //TODO maybe change?
 
         for(int slot=0;slot<12;slot++){
             if(table.slotToCard[slot]!=null){
