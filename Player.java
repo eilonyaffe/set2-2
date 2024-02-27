@@ -149,8 +149,8 @@ public class Player implements Runnable {
 
             }
             else {
-                if(!commandsQueue.lst.isEmpty() && this.table.tableReady){
-                    int slotCommand = commandsQueue.lst.remove(0);
+                if(!commandsQueue.isEmpty() && this.table.tableReady){
+                    int slotCommand = commandsQueue.remove();
                     if(this.status==1){
                         if(this.placed_tokens[slotCommand]){ //player removes token
                             this.table.removeToken(this.id, slotCommand);
@@ -235,7 +235,7 @@ public class Player implements Runnable {
 
                     if(!commandsQueue.isEmpty() && this.table.tableReady){ //will commit "key press"
                         try{
-                            int slotCommand = this.commandsQueue.lst.remove(0);
+                            int slotCommand = this.commandsQueue.remove();
                             this.table.placeToken(this.id, slotCommand);
                             // System.out.println("ai player: "+this.id + " placed token");
 
