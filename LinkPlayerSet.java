@@ -3,7 +3,6 @@ package bguspl.set.ex;
 public class LinkPlayerSet {
     public int[] cards;
     protected Player player;
-    // protected Thread playerThread;
 
 
     public LinkPlayerSet(int[] _cards, Player _player){
