@@ -35,6 +35,11 @@ public class Dealer implements Runnable {
     private volatile boolean terminate;
 
     /**
+     * True iff the game just began.
+     */
+    // private boolean gameStart; //hazilon changed
+
+    /**
      * The time when the dealer needs to reshuffle the deck due to turn timeout.
      */
     private long reshuffleTime = Long.MAX_VALUE;
@@ -42,17 +47,13 @@ public class Dealer implements Runnable {
     /**
      * The system time when starting the 60 seconds loop
      */
-    private long startTime = Long.MAX_VALUE;
-
-    /**
-     * The system time when starting the 60 seconds loop
-     */
-    private long timeElapsed = Long.MAX_VALUE;
+    // private long timeElapsed = Long.MAX_VALUE;
 
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
         this.players = players;
+        // this.gameStart = true; //hazilon changed
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
     }
 
@@ -62,7 +63,7 @@ public class Dealer implements Runnable {
     @Override
     public void run() {
         env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
-        createAndRunPlayerThreads(); 
+        createAndRunPlayerThreads(); //EY new
 
         while (!shouldFinish()) {
             placeCardsOnTable();
@@ -70,7 +71,7 @@ public class Dealer implements Runnable {
             timerLoop();
             updateTimerDisplay(true);
             removeAllCardsFromTable();
-        }    
+        }    //NEYA MODIFIED
 
         if (env.util.findSets(deck, 1).size() == 0) {//in case game ends when there are no more potential sets available
             System.out.println("No more sets found - GAME ENDS");
@@ -106,7 +107,7 @@ public class Dealer implements Runnable {
     /**
      * Called when the game should be terminated.
      */
-    public void terminate() { 
+    public void terminate() { //NEYA ADDED
         // TODO implement
         for (Player p: this.players){
             p.terminate();
@@ -128,39 +129,41 @@ public class Dealer implements Runnable {
      */
     private void removeCardsFromTable() {
         // TODO implement
-        while(!this.table.finishedPlayerSets.isEmpty()){ 
-            System.out.println("linkedlist size: "+this.table.finishedPlayerSets.list.size()); //to delete?
-            LinkPlayerSet removedLink = this.table.finishedPlayerSets.removeFirst(); 
-            System.out.println("checks set of player: "+removedLink.player.id);
+        // this.table.hints(); //EYTODO delete later
 
+        while(!this.table.finishedPlayerSets.isEmpty()){ //TODO was if(...). make sure it works. also was .isEmpty()
+            LinkPlayerSet removedLink = this.table.finishedPlayerSets.removeFirst(); //hazilon
             int[] cardsSet = removedLink.cards;
             Player player = removedLink.player;
             boolean success = this.env.util.testSet(cardsSet);
-            
             if(success){
                 this.table.tableReady = false;
                 System.out.println("success!");
                 for(int card: cardsSet){
-                    int slot = this.table.cardToSlot[card];
-                    ThreadSafeList slotObj = this.table.getSlot(slot);
-                    int[] playersWithToken = slotObj.getPlayers();
-                    for(int playerToReturn : playersWithToken){ //first returning tokens to players
-                        Player currPlayer = this.players[playerToReturn];
-                        currPlayer.tokensLeft++;
-                        currPlayer.placed_tokens[slot]=false;
-                        
-                        //checks if players with finished alleged set had cards who got just deleted. if so, removes their set and give them 3 tokens and status 1
-                        if(currPlayer.status==2 && currPlayer.id != player.id && currPlayer.wasCorrect!=-2){ //another player who had just finished
-                            System.out.println("player failed to make set: "+currPlayer.id);
-                            this.table.finishedPlayerSets.remove(currPlayer.playerSingleLink);
-                            currPlayer.wasCorrect = -2;
+                    if(this.table.cardToSlot[card]!=null){
+                        int slot = this.table.cardToSlot[card];
+                        ThreadSafeList slotObj = this.table.getSlot(slot);
+                        int[] playersWithToken = slotObj.getPlayers();
+                        for(int playerToReturn : playersWithToken){ //first returning tokens to players
+                            Player currPlayer = this.players[playerToReturn];
+                            currPlayer.tokensLeft++;
+                            // System.out.println("removed card from slot: "+ slot +" for player: "+currPlayer.id +" tokens left: "+currPlayer.tokensLeft);
+                            currPlayer.placed_tokens[slot]=false;
+                            
+                            //TODO also need to check if players with finished alleged set had cards who got just deleted. if so, remove their set and give them 3 tokens and status 1
+                            if(currPlayer.status==2 && currPlayer.id != player.id && currPlayer.wasCorrect!=-2){ //another player who had just finished
+                                System.out.println("player failed to make set: "+currPlayer.id);
+                                this.table.finishedPlayerSets.remove(currPlayer.playerSingleLink);
+                                currPlayer.wasCorrect = -2;
+                            }
                         }
+                        slotObj.removeAll();
+                        this.table.removeCard(slot);
                     }
-                    slotObj.removeAll();
-                    this.table.removeCard(slot);
                 }
                 this.updateTimerDisplay(true);
                 player.wasCorrect = 1; //indicates the player to activate point() on itself
+                // this.table.hints(); //EYTODO delete later 
             }
             else{
                 for(int card: cardsSet){
@@ -172,13 +175,11 @@ public class Dealer implements Runnable {
                 }
                 player.wasCorrect = 0; //indicates the player to activate penalty() on itself
             }
-
+            synchronized(this.table.playersLocker){
+                this.table.playersLocker.notifyAll(); //the first player from finishedPlayersCards got point/penalty, will change status so won't lock again. the players who weren't handled but are in the list will lock again
+                // System.out.println("dealer did notifyall on lock");
+            }
         }
-
-        synchronized(this.table.playersLocker){
-            this.table.playersLocker.notifyAll(); //the first player from finishedPlayersCards got point/penalty, will change status so won't lock again. the players who weren't handled but are in the list will lock again
-        }
-
         this.table.tableReady = true;
     }
 
@@ -186,22 +187,18 @@ public class Dealer implements Runnable {
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() {
-        // TODO implement
         this.dealerShuffle();
-        while(!deck.isEmpty()){
-            for(int slot=0;slot<12;slot++){
-                if(table.slotToCard[slot]==null){
-                    table.placeCard(deck.remove(0), slot);
-                }
+        for(int slot=0;slot<12 && !deck.isEmpty();slot++){
+            if(table.slotToCard[slot]==null){
+                table.placeCard(deck.remove(0), slot);
             }
-            break;
         }
     }
 
     /**
      * shuffles the deck
      */
-    private void dealerShuffle() { 
+    private void dealerShuffle() { //EYTODO new
         if(!deck.isEmpty()){
             Collections.shuffle(deck); 
         }
@@ -212,15 +209,12 @@ public class Dealer implements Runnable {
      */
     private void sleepUntilWokenOrTimeout() {
         // TODO implement
-        if(this.startTime == Long.MAX_VALUE && this.reshuffleTime == Long.MAX_VALUE){
-            this.startTime = System.currentTimeMillis();
-            this.reshuffleTime = System.currentTimeMillis() + (env.config.turnTimeoutMillis + 1000); 
-            this.timeElapsed = System.currentTimeMillis() + (env.config.turnTimeoutMillis + 1000);
+        if(this.reshuffleTime == Long.MAX_VALUE){
+            this.reshuffleTime = System.currentTimeMillis() + (env.config.turnTimeoutMillis + 1000); //EY: dont change!
         }
 
         try {
-            Thread.sleep(1000); 
-            this.timeElapsed -= 1000;
+            Thread.sleep(100); //EYTODO maybe change
         } catch (InterruptedException ignored) {}
 
     }
@@ -231,12 +225,17 @@ public class Dealer implements Runnable {
     private void updateTimerDisplay(boolean reset) {
         // TODO implement
         if(reset){
-            this.startTime = Long.MAX_VALUE;
             this.reshuffleTime = Long.MAX_VALUE;
-            this.timeElapsed = Long.MAX_VALUE;
         }
+
         else{
-            env.ui.setCountdown(timeElapsed-startTime, false);
+            long timer = reshuffleTime - System.currentTimeMillis();
+            if((timer) <= this.env.config.turnTimeoutWarningMillis){
+                env.ui.setCountdown(timer, true);
+            }
+            else{
+                env.ui.setCountdown(timer, false);
+            }
         }
         if(this.table.tableReady==false){
             this.table.tableReady=true;
@@ -250,7 +249,7 @@ public class Dealer implements Runnable {
         // TODO implement
         this.table.tableReady = false;
 
-        this.table.finishedPlayerSets.removeAll(); //all attempts at sets will be removed 
+        this.table.finishedPlayerSets.removeAll(); //all attempts at sets will be removed //TODO maybe change?
 
         for(int slot=0;slot<12;slot++){
             if(table.slotToCard[slot]!=null){
@@ -271,14 +270,13 @@ public class Dealer implements Runnable {
 
         this.table.removeAllTokens();
         System.out.println("removed all cards from table");
-
     }
 
     /**
      * Check who is/are the winner/s and displays them.
      */
     private void announceWinners() {
-        //TODO implement
+        // TODO implement
         int maxScore = -1;
         List<Integer> winners = new ArrayList<Integer>();
 
