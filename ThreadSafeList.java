@@ -17,7 +17,7 @@ public class ThreadSafeList {
 
 
     public synchronized boolean add(int value) {
-        if (!list.contains(value)) { 
+        if (!list.contains(value)) { //EYTODO maybe change?
             list.add(value);
             env.ui.placeToken(value, this.slot);
             return true;
@@ -56,7 +56,7 @@ public class ThreadSafeList {
         return list.size();
     }
 
-    public synchronized int[] getPlayers() { 
+    public synchronized int[] getPlayers() { //TODO
         int[] players = new int[this.list.size()];
         for(int i=0;i<players.length;i++){
             players[i] = this.list.get(i).intValue();
