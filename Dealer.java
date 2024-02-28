@@ -230,6 +230,8 @@ public class Dealer implements Runnable {
 
         else{
             long timer = reshuffleTime - System.currentTimeMillis();
+            long timeInSeconds = timer / 1000;
+            timer = timeInSeconds * 1000;
             if((timer) <= this.env.config.turnTimeoutWarningMillis){
                 env.ui.setCountdown(timer, true);
             }
