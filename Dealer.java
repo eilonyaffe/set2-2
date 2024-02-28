@@ -148,26 +148,24 @@ public class Dealer implements Runnable {
                 this.table.tableReady = false;
                 System.out.println("success!");
                 for(int card: cardsSet){
-                    if(this.table.cardToSlot[card]!=null){
-                        int slot = this.table.cardToSlot[card];
-                        ThreadSafeList slotObj = this.table.getSlot(slot);
-                        int[] playersWithToken = slotObj.getPlayers();
-                        for(int playerToReturn : playersWithToken){ //first returning tokens to players
-                            Player currPlayer = this.players[playerToReturn];
-                            currPlayer.tokensLeft++;
-                            // System.out.println("removed card from slot: "+ slot +" for player: "+currPlayer.id +" tokens left: "+currPlayer.tokensLeft);
-                            currPlayer.placed_tokens[slot]=false;
-                            
-                            //TODO also need to check if players with finished alleged set had cards who got just deleted. if so, remove their set and give them 3 tokens and status 1
-                            if(currPlayer.status==2 && currPlayer.id != player.id && currPlayer.wasCorrect!=-2){ //another player who had just finished
-                                System.out.println("player failed to make set: "+currPlayer.id);
-                                this.table.finishedPlayerSets.remove(currPlayer.playerSingleLink);
-                                currPlayer.wasCorrect = -2;
-                            }
+                    int slot = this.table.cardToSlot[card];
+                    ThreadSafeList slotObj = this.table.getSlot(slot);
+                    int[] playersWithToken = slotObj.getPlayers();
+                    for(int playerToReturn : playersWithToken){ //first returning tokens to players
+                        Player currPlayer = this.players[playerToReturn];
+                        currPlayer.tokensLeft++;
+                        // System.out.println("removed card from slot: "+ slot +" for player: "+currPlayer.id +" tokens left: "+currPlayer.tokensLeft);
+                        currPlayer.placed_tokens[slot]=false;
+                        
+                        //TODO also need to check if players with finished alleged set had cards who got just deleted. if so, remove their set and give them 3 tokens and status 1
+                        if(currPlayer.status==2 && currPlayer.id != player.id && currPlayer.wasCorrect!=-2){ //another player who had just finished
+                            System.out.println("player failed to make set: "+currPlayer.id);
+                            this.table.finishedPlayerSets.remove(currPlayer.playerSingleLink);
+                            currPlayer.wasCorrect = -2;
                         }
-                        slotObj.removeAll();
-                        this.table.removeCard(slot);
                     }
+                    slotObj.removeAll();
+                    this.table.removeCard(slot);
                 }
                 this.updateTimerDisplay(true);
                 player.wasCorrect = 1; //indicates the player to activate point() on itself
