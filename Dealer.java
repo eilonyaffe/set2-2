@@ -135,7 +135,10 @@ public class Dealer implements Runnable {
     private void removeCardsFromTable() {
         // TODO implement
         while(!this.table.finishedPlayerSets.isEmpty()){ //TODO was if(...). make sure it works. also was .isEmpty()
+            System.out.println("linkedlist size: "+this.table.finishedPlayerSets.list.size());
             LinkPlayerSet removedLink = this.table.finishedPlayerSets.removeFirst(); //hazilon
+            System.out.println("checks set of player: "+removedLink.player.id);
+
             // System.out.println("dealer check validity of set by player: "+removedLink.player.id);
             int[] cardsSet = removedLink.cards;
             Player player = removedLink.player;
@@ -178,14 +181,12 @@ public class Dealer implements Runnable {
                 }
                 player.wasCorrect = 0; //indicates the player to activate penalty() on itself
             }
-            synchronized(this.table.playersLocker){
-                this.table.playersLocker.notifyAll(); //the first player from finishedPlayersCards got point/penalty, will change status so won't lock again. the players who weren't handled but are in the list will lock again
-                // System.out.println("dealer did notifyall on lock");
-            }
-            // this.table.hints(); //EYTODO delete later 
 
-            // this.table.hints(); //EYTODO delete later 
-            // System.out.println("no more sets in deck? "+ (env.util.findSets(deck, 1).size() == 0));
+        }
+
+        synchronized(this.table.playersLocker){
+            this.table.playersLocker.notifyAll(); //the first player from finishedPlayersCards got point/penalty, will change status so won't lock again. the players who weren't handled but are in the list will lock again
+            // System.out.println("dealer did notifyall on lock");
         }
 
         this.table.tableReady = true;
