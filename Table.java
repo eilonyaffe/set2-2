@@ -45,12 +45,14 @@ public class Table {
         /**
      * a list of threadsafeLists, each represents a slot. made to avoid locking the entire table
      */
-    protected ArrayList<ThreadSafeList> slots; 
+    protected ArrayList<ThreadSafeList> slots; //NEW
 
     /**
      * a queue of finished players by integers
      */
-    protected ThreadSafeLinkedList finishedPlayerSets; 
+    protected ThreadSafeLinkedList finishedPlayerSets; //hazilon
+
+    // protected LinkedList<LinkPlayerSet> finishedPlayersCards; //EYTODO implement in the form of FIFO queue thread safe
 
     /**
      * Constructor for testing.
@@ -68,7 +70,7 @@ public class Table {
         for (int i = 0; i < 12; i++) {
             slots.add(new ThreadSafeList(env,i));
         }
-        this.finishedPlayerSets = new ThreadSafeLinkedList(); 
+        this.finishedPlayerSets = new ThreadSafeLinkedList(); ////hazilon
         this.tableReady = false;
         this.playersLocker = new Object();
     }
@@ -88,8 +90,8 @@ public class Table {
      * returns the required slot, in the form of arraylist.
      * @param slot - the slot in which the card should be placed.
      */
-    public ThreadSafeList getSlot(int slot){ 
-        return this.slots.get(slot); 
+    public ThreadSafeList getSlot(int slot){ //EYTODO NEW
+        return this.slots.get(slot); //was slot-5
     }
 
 
@@ -127,14 +129,15 @@ public class Table {
      * @post - the card placed is on the table, in the assigned slot.
      */
     public void placeCard(int card, int slot) {
-        // TODO implement
         try {
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
 
         cardToSlot[card] = slot;
         slotToCard[slot] = card;
-        env.ui.placeCard(card,slot);     
+        env.ui.placeCard(card,slot);
+
+        // TODO implement
     }
 
     /**
@@ -142,7 +145,6 @@ public class Table {
      * @param slot - the slot from which to remove the card.
      */
     public void removeCard(int slot) {
-        // TODO implement
         try {
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
@@ -150,6 +152,7 @@ public class Table {
         slotToCard[slot]=null;
         cardToSlot[card]=null;
         env.ui.removeCard(slot);
+        // TODO implement
     }
 
     /**
@@ -158,9 +161,9 @@ public class Table {
      * @param slot   - the slot on which to place the token.
      */
     public void placeToken(int player, int slot) {
-        // TODO implement
         ThreadSafeList currSlot = this.getSlot(slot);
         currSlot.add(player);
+        // TODO implement
     }
 
     /**
@@ -177,6 +180,7 @@ public class Table {
     }
 
     public void removeAllTokens() { 
+        // EYTODO implement
         for (ThreadSafeList currSlot:this.slots){
             currSlot.removeAll();
         }
