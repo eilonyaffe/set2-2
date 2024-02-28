@@ -106,10 +106,10 @@ public class Player implements Runnable {
         this.human = human;
         this.commandsQueue = new BoundedQueue<Integer>();
         this.tokensLeft = 3;
-        this.status = 1; //ensures players don't play before dealer places all cards //hazilon changed
+        this.status = 1; 
         this.placed_tokens = new boolean[12];
         this.wasCorrect = -1;
-        this.AIsleep = 3000;
+        this.AIsleep = 0;
         int[] cards = new int[3];
         this.playerSingleLink = new LinkPlayerSet(cards, this);
         System.out.println("player created, id: " + id); //TODO delete later
@@ -169,18 +169,8 @@ public class Player implements Runnable {
                             this.tokensLeft--;
                         }
                     }
-                    // else if(this.status==3){
-                    //     if(this.placed_tokens[slotCommand]){
-                    //         this.table.removeToken(this.id, slotCommand);
-                    //         this.placed_tokens[slotCommand]=false;
-                    //         this.tokensLeft++;
-                    //         this.status = 1; //returns to play normally
-                    //     }
-                    // }
                 }
             }
-        //if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
-        //env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {} //EYTODO should be here
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
@@ -215,8 +205,6 @@ public class Player implements Runnable {
                         }
                     }
 
-                    // System.out.println("player "+this.id+" entered if, after check, was correct: "+this.wasCorrect);
-                    //hazilon changed here
                     if(this.wasCorrect==1){
                         this.point();
                     }
@@ -232,9 +220,6 @@ public class Player implements Runnable {
                 }
 
                 else{
-                    // if(this.tokensLeft==3){
-                    //     System.out.println("ai player: "+this.id + " with 3 tokens entered else");
-                    // }
                     Collections.shuffle(slotsGenerator);
                     if(this.table.tableReady && this.table.slotToCard[slotsGenerator.get(0)] != null && this.placed_tokens[slotsGenerator.get(0)]==false){ //legal "key press"
                         this.commandsQueue.add(slotsGenerator.get(0)); 
@@ -249,7 +234,9 @@ public class Player implements Runnable {
 
                             this.placed_tokens[slotCommand]=true;
                             this.tokensLeft--;
-                            Thread.sleep(this.AIsleep);
+                            if(this.tokensLeft!=0){ //hazilon 28022024
+                                Thread.sleep(this.AIsleep);
+                            }
                             
                         } catch (InterruptedException ignored) {}
                     }
@@ -316,20 +303,12 @@ public class Player implements Runnable {
      *
      * @param slot - the slot corresponding to the key pressed.
      */
-    public void keyPressed(int slot) {
+    public void keyPressed(int slot) { //EYTODO change, have only check for status 1
         // TODO implement
-        if(this.status==3 && this.placed_tokens[slot]==false){ //player has to only remove tokens now //was slotCommand-5
-            //do nothing
-        }
-        else if(this.status==2){ //player awaits dealer's response
-            //do nothing //TODO maybe change? don't need if we implement threading correctly
-        }
-        else{
-            if(this.table.tableReady){
-                if (this.table.slotToCard[slot] != null){ //NEYA ADDED IF
+        if(this.status==1 && this.table.tableReady){
+            if (this.table.slotToCard[slot] != null){ //NEYA ADDED IF
                 this.commandsQueue.add(slot);
                 }
-            }
         }
     }
 
