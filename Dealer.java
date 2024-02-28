@@ -4,7 +4,6 @@ import bguspl.set.Env;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -167,8 +166,7 @@ public class Dealer implements Runnable {
                 }
                 this.updateTimerDisplay(true);
                 player.wasCorrect = 1; //indicates the player to activate point() on itself
-                this.table.hints(); //EYTODO delete later 
-
+                // this.table.hints(); //EYTODO delete later 
             }
             else{
                 for(int card: cardsSet){
@@ -184,7 +182,7 @@ public class Dealer implements Runnable {
                 this.table.playersLocker.notifyAll(); //the first player from finishedPlayersCards got point/penalty, will change status so won't lock again. the players who weren't handled but are in the list will lock again
                 // System.out.println("dealer did notifyall on lock");
             }
-            this.table.hints(); //EYTODO delete later 
+            // this.table.hints(); //EYTODO delete later 
 
             // this.table.hints(); //EYTODO delete later 
             // System.out.println("no more sets in deck? "+ (env.util.findSets(deck, 1).size() == 0));
@@ -209,15 +207,6 @@ public class Dealer implements Runnable {
             }
             break;
         }
-        // if(this.gameStart){ //hazilon changed
-        //     for (int i = 0; i < players.length; i++){
-        //         Player a = players[i];
-        //         a.status=1; //players can start playing
-        //         // this.table.tableReady = true;
-        //     }
-        //     this.gameStart = false;
-        // }
-        
     }
 
     /**
