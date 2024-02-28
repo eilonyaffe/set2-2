@@ -126,7 +126,7 @@ public class Player implements Runnable {
 
         while (human&&!terminate) {
             // TODO implement main player loop
-            
+            //EYTODO maybe insert here, if tableready==false, then wait. and then in the dealer we will notifyall
             if(this.tokensLeft==0 && this.status==1 && this.table.tableReady){ //player just finished making a set
                 this.wasCorrect = -1;
                 this.status=2;
@@ -139,7 +139,7 @@ public class Player implements Runnable {
                         } catch (InterruptedException ignored) {}
                     }
                 }
-                
+                //hazilon changed here
                 if(this.wasCorrect==1){
                     this.point();
                 }
@@ -172,7 +172,7 @@ public class Player implements Runnable {
                 }
             }
         }
-        if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {} 
+        if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {} //EYTODO should be here
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
     }
 
@@ -180,7 +180,7 @@ public class Player implements Runnable {
      * Creates an additional thread for an AI (computer) player. The main loop of this thread repeatedly generates
      * key presses. If the queue of key presses is full, the thread waits until it is not full.
      */
-    private void createArtificialIntelligence() { 
+    private void createArtificialIntelligence() { //NEYA ADDED
         // note: this is a very, very smart AI (!)
         aiThread = new Thread(() -> {
             env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
@@ -192,14 +192,15 @@ public class Player implements Runnable {
             while (!terminate) {
                 // TODO implement player key press simulator
 
-                if(this.tokensLeft==0 && this.status==1 && this.table.tableReady){ //just finished making a set
+                if(this.tokensLeft==0 && this.status==1 && this.table.tableReady){ //player just finished making a set
                     this.status=2;
                     this.sendSetCards();
 
                     synchronized(this.table.playersLocker){
                         while(this.wasCorrect==-1){
                             try{
-                                this.table.playersLocker.wait(); 
+                                this.table.playersLocker.wait(); //dealer will notify, and instruct point/penatly which will also change tokensleft and status
+                                // System.out.println("player: "+this.id +" exited sleep");
                             } catch (InterruptedException ignored) {}
                         }
                     }
@@ -222,15 +223,18 @@ public class Player implements Runnable {
                     Collections.shuffle(slotsGenerator);
                     if(this.table.tableReady && this.table.slotToCard[slotsGenerator.get(0)] != null && this.placed_tokens[slotsGenerator.get(0)]==false){ //legal "key press"
                         this.commandsQueue.add(slotsGenerator.get(0)); 
+                        // System.out.println("ai player: "+this.id + " added to queue");
                     }
 
                     if(!commandsQueue.isEmpty() && this.table.tableReady){ //will commit "key press"
                         try{
                             int slotCommand = this.commandsQueue.remove();
                             this.table.placeToken(this.id, slotCommand);
+                            // System.out.println("ai player: "+this.id + " placed token");
+
                             this.placed_tokens[slotCommand]=true;
                             this.tokensLeft--;
-                            if(this.tokensLeft!=0){ //if just finished making a set - don't sleep 
+                            if(this.tokensLeft!=0){ //hazilon 28022024
                                 Thread.sleep(this.AIsleep);
                             }
                             
@@ -240,6 +244,8 @@ public class Player implements Runnable {
                     
                 }  
             }
+        
+
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
         aiThread.start();
@@ -248,19 +254,19 @@ public class Player implements Runnable {
     /**
      * Called when the game should be terminated.
      */
-    public void terminate() { 
+    public void terminate() { //NEYA changed
         // TODO implement
         this.terminate = true;
 
         try{
-            this.playerThread.join(); //waits till the thread finishes
+            this.playerThread.join(); //waits till it finishes
         } catch(InterruptedException ignored){}
     }
 
     /**
      * Used for AI players, to reset them
      */
-    public void playerReset() { 
+    public void playerReset() { //Hazilon added
         for (int i = 0; i < 12; i++){ //remove all tokens if set is invalid
             if(this.placed_tokens[i] == true){
                 this.table.removeToken(this.id, i);
@@ -268,7 +274,7 @@ public class Player implements Runnable {
             }
         }
         this.commandsQueue.Clear();
-        this.tokensLeft = 3; 
+        this.tokensLeft = 3; //hazilon added change here
         this.status = 1;
         try{
             Thread.sleep(this.AIsleep); //sleep to prolongue next key press
@@ -289,7 +295,7 @@ public class Player implements Runnable {
             }
         }
         this.playerSingleLink.cards = newCards;
-        this.table.finishedPlayerSets.add(playerSingleLink);  
+        this.table.finishedPlayerSets.add(playerSingleLink);  //hazilon
     }
 
     /**
@@ -297,10 +303,10 @@ public class Player implements Runnable {
      *
      * @param slot - the slot corresponding to the key pressed.
      */
-    public void keyPressed(int slot) { 
+    public void keyPressed(int slot) { //EYTODO change, have only check for status 1
         // TODO implement
         if(this.status==1 && this.table.tableReady){
-            if (this.table.slotToCard[slot] != null){ //a player can't place token on grey spot on grid (if exists)
+            if (this.table.slotToCard[slot] != null){ //NEYA ADDED IF
                 this.commandsQueue.add(slot);
                 }
         }
@@ -320,12 +326,12 @@ public class Player implements Runnable {
         this.placed_tokens = new boolean[12]; //resets the player's placed_tokens
         
         long freezeTime = this.env.config.pointFreezeMillis;
-        env.ui.setFreeze(this.id, freezeTime); 
+        env.ui.setFreeze(this.id, freezeTime); //EYTODO chech if works correctly
 
         while(freezeTime>0){
             freezeTime = freezeTime - 1000;
             try {
-                Thread.sleep(1000); 
+                Thread.sleep(1000); //EYTODO maybe change, now total 5 seconds
             } catch (InterruptedException ignored) {}
             env.ui.setFreeze(this.id, freezeTime); //descending until unfrozen
         }
@@ -342,11 +348,11 @@ public class Player implements Runnable {
     public void penalty() {
         // TODO implement
         long freezeTime = this.env.config.penaltyFreezeMillis;
-        env.ui.setFreeze(this.id, freezeTime); 
+        env.ui.setFreeze(this.id, freezeTime); //EYTODO chech if works correctly
         while(freezeTime>0){
             freezeTime = freezeTime - 1000;
             try {
-                Thread.sleep(1000); 
+                Thread.sleep(1000); //EYTODO maybe change, now total 5 seconds
             } catch (InterruptedException ignored) {}
             env.ui.setFreeze(this.id, freezeTime); //descending until unfrozen
         }
