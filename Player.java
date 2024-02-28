@@ -267,9 +267,13 @@ public class Player implements Runnable {
     /**
      * Called when the game should be terminated.
      */
-    public void terminate() { //NEYA ADDED
+    public void terminate() { //NEYA changed
         // TODO implement
         this.terminate = true;
+
+        try{
+            this.playerThread.join(); //waits till it finishes
+        } catch(InterruptedException ignored){}
     }
 
     /**
