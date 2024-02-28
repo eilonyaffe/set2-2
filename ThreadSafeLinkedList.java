@@ -11,7 +11,7 @@ public class ThreadSafeLinkedList {
 
 
     public synchronized boolean add(LinkPlayerSet newLink) {
-        System.out.println("added set by player: "+newLink.player.id);
+        // System.out.println("added set by player: "+newLink.player.id);
         return this.list.add(newLink);
     }
 
